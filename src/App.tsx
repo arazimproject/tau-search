@@ -180,14 +180,21 @@ function App() {
           <Header />
           <div
             style={{
-              width: 400,
-              maxWidth: "95%",
-              height: "calc(100% - 75px)",
+              width: "100%",
               display: "flex",
-              flexDirection: "column",
+              justifyContent: "center",
+              height: "calc(100% - 75px)",
+              overflow: "auto",
             }}
           >
-            <div style={{ flex: "none" }}>
+            <div
+              style={{
+                width: 400,
+                maxWidth: "95%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <h1>חיפוש קורסים</h1>
               <Select
                 ref={yearRef}
@@ -204,16 +211,20 @@ function App() {
                 leftSection={<i className="fa-solid fa-cloud-sun" />}
               />
               <TextInput
+                mt="xs"
+                size="md"
                 ref={lecturerRef}
                 label="מרצה"
                 leftSection={<i className="fa-solid fa-chalkboard-user" />}
               />
               <TextInput
+                size="md"
                 ref={courseNameRef}
                 label="שם קורס"
                 leftSection={<i className="fa-solid fa-graduation-cap" />}
               />
               <TextInput
+                size="md"
                 ref={courseNumberRef}
                 label="מספר קורס"
                 leftSection={<i className="fa-solid fa-hashtag" />}
@@ -235,8 +246,6 @@ function App() {
                   חיפוש במערכת של האוניברסיטה
                 </Button>
               </Button.Group>
-            </div>
-            <div style={{ flexGrow: 1, overflow: "auto" }}>
               {courses.length !== 0 && (
                 <p style={{ marginBottom: 10 }}>
                   מספר תוצאות: {courses.length}
