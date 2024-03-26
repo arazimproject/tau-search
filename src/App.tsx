@@ -12,6 +12,7 @@ import { useRef, useState } from "react"
 import CourseCard from "./CourseCard"
 import { CourseInfo } from "./typing"
 import Header from "./Header"
+import Footer from "./Footer"
 
 const SEMESTERS: Record<string, string> = {
   "א׳": "a",
@@ -45,8 +46,11 @@ const YEARS = [
 ].reverse()
 
 function App() {
-  const [courses, setCourses] = useState<[string, CourseInfo][]>([])
+  const [courses, setCourses] = useState<
+    [string, string, string, CourseInfo][]
+  >([])
   const [loading, setLoading] = useState(false)
+  const [searchTime, setSearchTime] = useState(0)
   const colorScheme = useColorScheme()
 
   const yearRef = useRef<HTMLInputElement>(null)
@@ -80,6 +84,7 @@ function App() {
   }
 
   const search = async () => {
+    const startTime = Date.now()
     setLoading(true)
     const year = yearRef.current?.value
     const semester = semesterRef.current?.value
@@ -87,10 +92,10 @@ function App() {
     const courseName = courseNameRef.current?.value
     const courseNumber = courseNumberRef.current?.value
 
-    const resultCourses: [string, CourseInfo][] = []
+    const resultCourses: [string, string, string, CourseInfo][] = []
 
     let years = YEARS
-    let semesters = ["a", "b"]
+    let semesters = Object.keys(SEMESTERS)
 
     if (year !== undefined && year !== "") {
       years = [year]
@@ -128,15 +133,22 @@ function App() {
             const parts = lecturer.split(" ")
             let hasLecturer = false
             for (const group of course.groups) {
-              let hasAll = true
-              for (const part of parts) {
-                if (!group.lecturer?.includes(part)) {
-                  hasAll = false
+              let someLecturerHasAll = false
+              for (const lecturer of group.lecturer?.split(", ") ?? []) {
+                let hasAll = true
+                for (const part of parts) {
+                  if (!lecturer.includes(part)) {
+                    hasAll = false
+                    break
+                  }
+                }
+                if (hasAll) {
+                  someLecturerHasAll = true
                   break
                 }
               }
 
-              if (hasAll) {
+              if (someLecturerHasAll) {
                 hasLecturer = true
                 break
               }
@@ -147,7 +159,7 @@ function App() {
             }
           }
 
-          resultCourses.push([courseId, course])
+          resultCourses.push([courseId, year, semester, course])
 
           if (resultCourses.length >= 50) {
             break
@@ -164,6 +176,8 @@ function App() {
 
     setCourses(resultCourses)
     setLoading(false)
+    const endTime = Date.now()
+    setSearchTime(endTime - startTime)
   }
 
   return (
@@ -180,10 +194,10 @@ function App() {
           <Header />
           <div
             style={{
+              flexGrow: 1,
               width: "100%",
               display: "flex",
               justifyContent: "center",
-              height: "calc(100% - 75px)",
               overflow: "auto",
             }}
           >
@@ -205,7 +219,6 @@ function App() {
               />
               <Select
                 label="סמסטר"
-                defaultValue="א׳"
                 ref={semesterRef}
                 data={["א׳", "ב׳"]}
                 leftSection={<i className="fa-solid fa-cloud-sun" />}
@@ -247,15 +260,26 @@ function App() {
                 </Button>
               </Button.Group>
               {courses.length !== 0 && (
-                <p style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", marginBottom: 10 }}>
                   מספר תוצאות: {courses.length}
-                </p>
+                  <span style={{ flexGrow: 1 }} />
+                  <p>
+                    זמן חיפוש: {Math.round((searchTime / 1000) * 100) / 100}s
+                  </p>
+                </div>
               )}
-              {courses.map(([courseId, course], index) => (
-                <CourseCard key={index} courseId={courseId} course={course} />
+              {courses.map(([courseId, year, semester, course], index) => (
+                <CourseCard
+                  key={index}
+                  courseId={courseId}
+                  year={year}
+                  semester={semester}
+                  course={course}
+                />
               ))}
             </div>
           </div>
+          <Footer />
         </div>
         <form
           ref={universityFormRef}

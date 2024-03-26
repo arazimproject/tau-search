@@ -5,16 +5,19 @@ const hash = new ColorHash()
 
 const CourseCard = ({
   course,
+  year,
+  semester,
   courseId,
 }: {
   course: CourseInfo
+  year: string
+  semester: string
   courseId: string
 }) => {
   const courseTeachers = new Set<string>()
   for (const group of course.groups) {
     if (group.lecturer !== null && group.lecturer !== "") {
       for (const lecturer of group.lecturer.split(", ")) {
-        console.log(lecturer)
         courseTeachers.add(lecturer)
       }
     }
@@ -47,14 +50,10 @@ const CourseCard = ({
         </p>
       ))}
 
-      <p style={{ fontSize: 10, textAlign: "end" }}>{courseId}</p>
-
-      {/* {course.groups.map((group, index) => (
-          <div key={index}>
-            קבוצה {group.group} - {group.lecturer}{" "}
-            {group.lessons.map((lesson) => lesson.type).join(", ")}
-          </div>
-        ))} */}
+      <p style={{ fontSize: 10, textAlign: "end" }}>
+        {courseId} ({year}
+        {semester})
+      </p>
     </div>
   )
 }
