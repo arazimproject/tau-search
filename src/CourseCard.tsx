@@ -1,5 +1,8 @@
 import ColorHash from "color-hash"
 import { CourseInfo } from "./typing"
+import { Button } from "@mantine/core"
+import { UNIVERSITY_SEMESTERS } from "./constants"
+import React from "react"
 
 const hash = new ColorHash()
 
@@ -49,6 +52,49 @@ const CourseCard = ({
           <b>מועד {exam.moed}':</b> {exam.date} ב-{exam.hour}
         </p>
       ))}
+
+      {course.groups.map((group, index) => (
+        <React.Fragment key={index}>
+          <p>
+            <b>
+              {group.lecturer} (קבוצה {group.group})
+            </b>
+          </p>
+          {group.lessons.map((lesson, lessonIndex) => (
+            <p key={lessonIndex}>
+              {lesson.type} ב{lesson.building} {lesson.room} ביום {lesson.day}'{" "}
+              בשעות {lesson.time}
+            </p>
+          ))}
+        </React.Fragment>
+      ))}
+
+      <Button.Group my="xs">
+        <Button
+          component="a"
+          target="_blank"
+          href={`https://www.ims.tau.ac.il/Tal/Syllabus/Syllabus_L.aspx?course=${courseId}${
+            course.groups[0].group
+          }&year=${parseInt(year, 10) - 1}`}
+          variant="white"
+          style={{ width: "50%" }}
+          leftSection={<i className="fa-solid fa-graduation-cap" />}
+        >
+          סילבוס
+        </Button>
+        <Button
+          component="a"
+          href={`https://www.ims.tau.ac.il/Tal/kr/Drishot_L.aspx?kurs=${courseId}&kv=${
+            course.groups[0].group
+          }&sem=${parseInt(year, 10) - 1}${UNIVERSITY_SEMESTERS[semester]}`}
+          target="_blank"
+          variant="white"
+          style={{ width: "50%" }}
+          leftSection={<i className="fa-solid fa-list" />}
+        >
+          דרישות קדם
+        </Button>
+      </Button.Group>
 
       <p style={{ fontSize: 10, textAlign: "end" }}>
         {courseId} ({year}

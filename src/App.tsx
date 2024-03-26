@@ -13,37 +13,7 @@ import CourseCard from "./CourseCard"
 import { CourseInfo } from "./typing"
 import Header from "./Header"
 import Footer from "./Footer"
-
-const SEMESTERS: Record<string, string> = {
-  "א׳": "a",
-  "ב׳": "b",
-}
-
-const UNIVERSITY_SEMESTERS: Record<string, string> = {
-  "א׳": "1",
-  "ב׳": "2",
-}
-
-const YEARS = [
-  "2007",
-  "2008",
-  "2009",
-  "2010",
-  "2011",
-  "2012",
-  "2013",
-  "2014",
-  "2015",
-  "2016",
-  "2017",
-  "2018",
-  "2019",
-  "2020",
-  "2021",
-  "2022",
-  "2023",
-  "2024",
-].reverse()
+import { SEMESTERS, UNIVERSITY_SEMESTERS, YEARS } from "./constants"
 
 function App() {
   const [courses, setCourses] = useState<
@@ -180,6 +150,13 @@ function App() {
     setSearchTime(endTime - startTime)
   }
 
+  const searchIfEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      search()
+    }
+  }
+
   return (
     <DirectionProvider>
       <MantineProvider forceColorScheme={colorScheme}>
@@ -209,7 +186,6 @@ function App() {
                 flexDirection: "column",
               }}
             >
-              <h1>חיפוש קורסים</h1>
               <Select
                 ref={yearRef}
                 defaultValue="2024"
@@ -229,18 +205,21 @@ function App() {
                 ref={lecturerRef}
                 label="מרצה"
                 leftSection={<i className="fa-solid fa-chalkboard-user" />}
+                onKeyDown={searchIfEnter}
               />
               <TextInput
                 size="md"
                 ref={courseNameRef}
                 label="שם קורס"
                 leftSection={<i className="fa-solid fa-graduation-cap" />}
+                onKeyDown={searchIfEnter}
               />
               <TextInput
                 size="md"
                 ref={courseNumberRef}
                 label="מספר קורס"
                 leftSection={<i className="fa-solid fa-hashtag" />}
+                onKeyDown={searchIfEnter}
               />
               <Button.Group my="lg" orientation="vertical">
                 <Button
@@ -254,7 +233,7 @@ function App() {
                 <Button
                   onClick={searchUniversity}
                   fullWidth
-                  leftSection={<i className="fa-solid fa-search" />}
+                  leftSection={<i className="fa-solid fa-school" />}
                 >
                   חיפוש במערכת של האוניברסיטה
                 </Button>

@@ -40,7 +40,7 @@
   }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 300px) {
   .show-wide {
     display: none !important;
   }
