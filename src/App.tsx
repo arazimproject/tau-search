@@ -99,8 +99,11 @@ function App() {
   const [searchTime, setSearchTime] = useState(0)
   const colorScheme = useColorScheme()
 
-  const [compactView, setCompactView] = useState("false")
-  const [showOnlyWithExams, setShowOnlyWithExams] = useState("false")
+  const [compactView, setCompactView] = useQueryParam("compactView", "false")
+  const [showOnlyWithExams, setShowOnlyWithExams] = useQueryParam(
+    "showOnlyWithExams",
+    "false"
+  )
   const [year, setYear] = useQueryParam("year", "2025")
   const [semester, setSemester] = useQueryParam("semester")
   const [lecturer, setLecturer] = useQueryParam("lecturer")
