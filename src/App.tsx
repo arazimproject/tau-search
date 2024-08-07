@@ -77,7 +77,7 @@ function App() {
     for (const year of years) {
       for (const semester of semesters) {
         const response = await fetch(
-          "/courses/" + year + SEMESTERS[semester] + ".json"
+          "/courses/courses-" + year + SEMESTERS[semester] + ".json"
         )
         const semesterCourses = await response.json()
         for (const courseId in semesterCourses) {
@@ -188,7 +188,7 @@ function App() {
             >
               <Select
                 ref={yearRef}
-                defaultValue="2024"
+                defaultValue="2025"
                 label="שנה"
                 data={YEARS}
                 leftSection={<i className="fa-solid fa-calendar" />}
