@@ -11,11 +11,13 @@ const CourseCard = ({
   year,
   semester,
   courseId,
+  compactView,
 }: {
   course: CourseInfo
   year: string
   semester: string
   courseId: string
+  compactView?: boolean
 }) => {
   const courseTeachers = new Set<string>()
   for (const group of course.groups) {
@@ -47,56 +49,78 @@ const CourseCard = ({
         </p>
       )}
 
-      {course.exams.map((exam, index) => (
-        <p key={index}>
-          <b>מועד {exam.moed}':</b> {exam.date} ב-{exam.hour}
-        </p>
-      ))}
-
-      {course.groups.map((group, index) => (
-        <React.Fragment key={index}>
-          <p>
-            <b>
-              {group.lecturer} (קבוצה {group.group})
-            </b>
-          </p>
-          {group.lessons.map((lesson, lessonIndex) => (
-            <p key={lessonIndex}>
-              {lesson.type} ב{lesson.building} {lesson.room} ביום {lesson.day}'{" "}
-              בשעות {lesson.time}
+      {compactView || (
+        <>
+          {course.exams.map((exam, index) => (
+            <p key={index}>
+              <b>מועד {exam.moed}':</b> {exam.date} ב-{exam.hour}
             </p>
           ))}
-        </React.Fragment>
+
+          {course.groups.map((group, index) => (
+            <React.Fragment key={index}>
+              <p>
+                <b>
+                  {group.lecturer} (קבוצה {group.group})
+                </b>
+              </p>
+              {group.lessons.map((lesson, lessonIndex) => (
+                <p key={lessonIndex}>
+                  {lesson.type} ב{lesson.building} {lesson.room} ביום{" "}
+                  {lesson.day}' בשעות {lesson.time}
+                </p>
+              ))}
+            </React.Fragment>
+          ))}
+
+          <Button.Group my="xs">
+            <Button
+              component="a"
+              target="_blank"
+              href={`https://www.ims.tau.ac.il/Tal/Syllabus/Syllabus_L.aspx?course=${courseId}${
+                course.groups[0].group
+              }&year=${parseInt(year, 10) - 1}`}
+              variant="white"
+              style={{ width: "50%" }}
+              leftSection={<i className="fa-solid fa-graduation-cap" />}
+            >
+              סילבוס
+            </Button>
+            <Button
+              component="a"
+              href={`https://www.ims.tau.ac.il/Tal/kr/Drishot_L.aspx?kurs=${courseId}&kv=${
+                course.groups[0].group
+              }&sem=${parseInt(year, 10) - 1}${UNIVERSITY_SEMESTERS[semester]}`}
+              target="_blank"
+              variant="white"
+              style={{ width: "50%" }}
+              leftSection={<i className="fa-solid fa-list" />}
+            >
+              דרישות קדם
+            </Button>
+          </Button.Group>
+        </>
+      )}
+
+      {(course.exam_links ?? []).map((examLink, index) => (
+        <Button
+          component="a"
+          href={examLink}
+          key={index}
+          fullWidth
+          mb="xs"
+          variant="white"
+          leftSection={<i className="fa-solid fa-file-pdf" />}
+        >
+          {
+            decodeURIComponent(examLink.split("/").reverse()[0]).split(
+              ".pdf"
+            )[0]
+          }
+        </Button>
       ))}
 
-      <Button.Group my="xs">
-        <Button
-          component="a"
-          target="_blank"
-          href={`https://www.ims.tau.ac.il/Tal/Syllabus/Syllabus_L.aspx?course=${courseId}${
-            course.groups[0].group
-          }&year=${parseInt(year, 10) - 1}`}
-          variant="white"
-          style={{ width: "50%" }}
-          leftSection={<i className="fa-solid fa-graduation-cap" />}
-        >
-          סילבוס
-        </Button>
-        <Button
-          component="a"
-          href={`https://www.ims.tau.ac.il/Tal/kr/Drishot_L.aspx?kurs=${courseId}&kv=${
-            course.groups[0].group
-          }&sem=${parseInt(year, 10) - 1}${UNIVERSITY_SEMESTERS[semester]}`}
-          target="_blank"
-          variant="white"
-          style={{ width: "50%" }}
-          leftSection={<i className="fa-solid fa-list" />}
-        >
-          דרישות קדם
-        </Button>
-      </Button.Group>
-
-      <p style={{ fontSize: 10, textAlign: "end" }}>
+      <p style={{ fontSize: 12, textAlign: "end" }}>
         {courseId} ({year}
         {semester})
       </p>

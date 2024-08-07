@@ -18,4 +18,5 @@ export interface CourseInfo {
       type: string
     }[]
   }[]
+  exam_links?: string[]
 }
