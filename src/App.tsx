@@ -237,6 +237,7 @@ function App() {
                 data={YEARS}
                 leftSection={<i className="fa-solid fa-calendar" />}
                 size="md"
+                clearable
               />
               <Select
                 mt="xs"
@@ -246,6 +247,7 @@ function App() {
                 data={["א׳", "ב׳"]}
                 leftSection={<i className="fa-solid fa-cloud-sun" />}
                 size="md"
+                clearable
               />
               <TextInput
                 mt="xs"
