@@ -159,7 +159,7 @@ const App = () => {
   const [allCourseNumbers, setAllCourseNumbers] = useState<string[]>([])
   const [status, setStatus] = useState("")
   const [performedSearch, setPerformedSearch] = useState(false)
-  const [activePage, setActivePage] = useState(1)
+  const [activePage, setActivePage] = useQueryParam("page", "1")
 
   const clearStatus = () => setStatus("")
 
@@ -211,7 +211,7 @@ const App = () => {
     universityFormRef.current!.submit()
   }
 
-  const search = async () => {
+  const search = async (initialFetch = false) => {
     const startTime = Date.now()
     setLoading(true)
     setPerformedSearch(false)
@@ -251,7 +251,9 @@ const App = () => {
       }
     }
 
-    setActivePage(1)
+    if (!initialFetch) {
+      setActivePage("1")
+    }
     setCourses(resultCourses)
     setLoading(false)
     const endTime = Date.now()
@@ -268,7 +270,7 @@ const App = () => {
 
   useEffect(() => {
     if (window.location.search !== "") {
-      search()
+      search(true)
     }
   }, [])
 
@@ -423,8 +425,8 @@ const App = () => {
                   >
                     <Pagination
                       total={Math.floor(courses.length / RESULTS_PER_PAGE)}
-                      value={activePage}
-                      onChange={setActivePage}
+                      value={parseInt(activePage, 10)}
+                      onChange={(v) => setActivePage(v.toString())}
                       mb="xs"
                     />
                   </div>
@@ -432,8 +434,8 @@ const App = () => {
               )}
               {courses
                 .slice(
-                  RESULTS_PER_PAGE * (activePage - 1),
-                  RESULTS_PER_PAGE * activePage
+                  RESULTS_PER_PAGE * (parseInt(activePage, 10) - 1),
+                  RESULTS_PER_PAGE * parseInt(activePage, 10)
                 )
                 .map(([courseId, year, semester, course], index) => (
                   <CourseCard
