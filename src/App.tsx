@@ -7,6 +7,7 @@ import {
   Loader,
   MantineProvider,
   OptionsFilter,
+  Pagination,
   Select,
   Switch,
 } from "@mantine/core"
@@ -19,6 +20,8 @@ import Header from "./Header"
 import Footer from "./Footer"
 import { SEMESTERS, UNIVERSITY_SEMESTERS, YEARS } from "./constants"
 import { useQueryParam } from "./hooks"
+
+const RESULTS_PER_PAGE = 10
 
 const stringIncludes = (x: string, y: string) =>
   x.toLowerCase().includes(y.toLowerCase())
@@ -125,7 +128,7 @@ const getResultsForYear = async (
   return results
 }
 
-function App() {
+const App = () => {
   const [courses, setCourses] = useState<
     [string, string, string, CourseInfo][]
   >([])
@@ -155,6 +158,8 @@ function App() {
   const [allCourseNames, setAllCourseNames] = useState<string[]>([])
   const [allCourseNumbers, setAllCourseNumbers] = useState<string[]>([])
   const [status, setStatus] = useState("")
+  const [performedSearch, setPerformedSearch] = useState(false)
+  const [activePage, setActivePage] = useState(1)
 
   const clearStatus = () => setStatus("")
 
@@ -209,6 +214,7 @@ function App() {
   const search = async () => {
     const startTime = Date.now()
     setLoading(true)
+    setPerformedSearch(false)
 
     const resultCourses: [string, string, string, CourseInfo][] = []
 
@@ -242,21 +248,15 @@ function App() {
     for (const promiseResult of promiseResults) {
       for (const result of promiseResult) {
         resultCourses.push(result)
-
-        if (resultCourses.length === 50) {
-          break
-        }
-      }
-
-      if (resultCourses.length === 50) {
-        break
       }
     }
 
+    setActivePage(1)
     setCourses(resultCourses)
     setLoading(false)
     const endTime = Date.now()
     setSearchTime(endTime - startTime)
+    setPerformedSearch(true)
   }
 
   const searchIfEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -402,25 +402,49 @@ function App() {
                 }
               />
 
-              {courses.length !== 0 && (
-                <div style={{ display: "flex", marginBottom: 10 }}>
-                  מספר תוצאות: {courses.length}
-                  <span style={{ flexGrow: 1 }} />
-                  <p>
-                    זמן חיפוש: {Math.round((searchTime / 1000) * 100) / 100}s
-                  </p>
-                </div>
+              {courses.length === 0 && performedSearch && (
+                <p style={{ textAlign: "center" }}>לא נמצאו תוצאות.</p>
               )}
-              {courses.map(([courseId, year, semester, course], index) => (
-                <CourseCard
-                  key={index}
-                  compactView={compactView === "true"}
-                  courseId={courseId}
-                  year={year}
-                  semester={semester}
-                  course={course}
-                />
-              ))}
+              {courses.length !== 0 && (
+                <>
+                  <div style={{ display: "flex", marginBottom: 10 }}>
+                    מספר תוצאות: {courses.length}
+                    <span style={{ flexGrow: 1 }} />
+                    <p>
+                      זמן חיפוש: {Math.round((searchTime / 1000) * 100) / 100}s
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Pagination
+                      total={Math.floor(courses.length / RESULTS_PER_PAGE)}
+                      value={activePage}
+                      onChange={setActivePage}
+                      mb="xs"
+                    />
+                  </div>
+                </>
+              )}
+              {courses
+                .slice(
+                  RESULTS_PER_PAGE * (activePage - 1),
+                  RESULTS_PER_PAGE * activePage
+                )
+                .map(([courseId, year, semester, course], index) => (
+                  <CourseCard
+                    key={index}
+                    compactView={compactView === "true"}
+                    courseId={courseId}
+                    year={year}
+                    semester={semester}
+                    course={course}
+                  />
+                ))}
             </div>
           </div>
           <Footer />
