@@ -2,8 +2,11 @@ import "@fortawesome/fontawesome-free/css/all.css"
 import {
   Autocomplete,
   Button,
+  ComboboxItem,
   DirectionProvider,
+  Loader,
   MantineProvider,
+  OptionsFilter,
   Select,
   Switch,
 } from "@mantine/core"
@@ -20,6 +23,50 @@ import { useQueryParam } from "./hooks"
 const stringIncludes = (x: string, y: string) =>
   x.toLowerCase().includes(y.toLowerCase())
 
+const stringIncludesWords = (x: string, y: string) => {
+  const parts = y.split(" ")
+  for (const part of parts) {
+    if (!x.includes(part)) {
+      return false
+    }
+  }
+  return true
+}
+
+const lecturerFilter: OptionsFilter = ({ options, search, limit }) => {
+  const results: ComboboxItem[] = []
+  let i = 0
+  while (results.length < limit && i < options.length) {
+    const option = options[i] as ComboboxItem
+    if (stringIncludesWords(option.label, search)) {
+      results.push(option)
+    }
+
+    i++
+  }
+  return results
+}
+
+const coursesUrlFor = (year: string, semester: string) =>
+  "https://arazim-project.com/courses/courses-" +
+  year +
+  SEMESTERS[semester] +
+  ".json"
+
+const requestCache: Record<string, any> = {}
+const requestPromises: Record<string, Promise<any>> = {}
+const cachedFetchJson = async (url: string) => {
+  if (requestCache[url] !== undefined) {
+    return requestCache[url]
+  }
+  if (requestPromises[url] === undefined) {
+    requestPromises[url] = fetch(url).then((r) => r.json())
+  }
+  const json = await requestPromises[url]
+  requestCache[url] = json
+  return json
+}
+
 const getResultsForYear = async (
   year: string,
   semester: string,
@@ -29,13 +76,7 @@ const getResultsForYear = async (
   showOnlyWithExams: boolean
 ) => {
   const results: [string, string, string, CourseInfo][] = []
-  const response = await fetch(
-    "https://arazim-project.com/courses/courses-" +
-      year +
-      SEMESTERS[semester] +
-      ".json"
-  )
-  const semesterCourses = await response.json()
+  const semesterCourses = await cachedFetchJson(coursesUrlFor(year, semester))
   for (const courseId in semesterCourses) {
     const course = semesterCourses[courseId] as CourseInfo
 
@@ -56,26 +97,16 @@ const getResultsForYear = async (
     }
 
     if (lecturer !== undefined && lecturer !== "") {
-      const parts = lecturer.split(" ")
       let hasLecturer = false
       for (const group of course.groups) {
-        let someLecturerHasAll = false
-        for (const lecturer of group.lecturer?.split(", ") ?? []) {
-          let hasAll = true
-          for (const part of parts) {
-            if (!stringIncludes(lecturer, part)) {
-              hasAll = false
-              break
-            }
-          }
-          if (hasAll) {
-            someLecturerHasAll = true
+        for (const l of group.lecturer?.split(", ") ?? []) {
+          if (stringIncludesWords(l, lecturer)) {
+            hasLecturer = true
             break
           }
         }
 
-        if (someLecturerHasAll) {
-          hasLecturer = true
+        if (hasLecturer) {
           break
         }
       }
@@ -123,8 +154,12 @@ function App() {
   const [allLecturers, setAllLecturers] = useState<string[]>([])
   const [allCourseNames, setAllCourseNames] = useState<string[]>([])
   const [allCourseNumbers, setAllCourseNumbers] = useState<string[]>([])
+  const [status, setStatus] = useState("")
+
+  const clearStatus = () => setStatus("")
 
   useEffect(() => {
+    setStatus("טוען מידע על כל הקורסים להשלמה אוטומטית...")
     fetch("https://arazim-project.com/courses/courses.json")
       .then((r) => r.json())
       .then((allCourses) => {
@@ -141,7 +176,18 @@ function App() {
         setAllCourseNumbers(allCourseNumbers.sort())
         setAllCourseNames([...allCourseNames].sort())
         setAllLecturers([...allLecturers].sort())
+        clearStatus()
       })
+      .catch(clearStatus)
+
+    const promises: Promise<any>[] = []
+    setStatus("טוען מראש את כל הקורסים כדי להאיץ את החיפוש...")
+    for (const year of YEARS) {
+      for (const semester of Object.keys(SEMESTERS).sort()) {
+        promises.push(cachedFetchJson(coursesUrlFor(year, semester)))
+      }
+    }
+    Promise.all(promises).then(clearStatus).catch(clearStatus)
   }, [])
 
   const searchUniversity = () => {
@@ -255,6 +301,21 @@ function App() {
                 flexDirection: "column",
               }}
             >
+              <h1 style={{ textAlign: "center", marginTop: 10 }}>
+                חיפוש קורסים
+              </h1>
+              {status !== "" && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Loader size="sm" ml="xs" />
+                  {status}
+                </div>
+              )}
               <Select
                 mt="xs"
                 value={year}
@@ -263,7 +324,6 @@ function App() {
                 label="שנה"
                 data={YEARS}
                 leftSection={<i className="fa-solid fa-calendar" />}
-                size="md"
                 clearable
               />
               <Select
@@ -273,12 +333,10 @@ function App() {
                 onChange={(v) => setSemester(v ?? "")}
                 data={["א׳", "ב׳"]}
                 leftSection={<i className="fa-solid fa-cloud-sun" />}
-                size="md"
                 clearable
               />
               <Autocomplete
                 mt="xs"
-                size="md"
                 value={lecturer}
                 onChange={setLecturer}
                 label="מרצה"
@@ -286,10 +344,10 @@ function App() {
                 onKeyDown={searchIfEnter}
                 data={allLecturers}
                 limit={20}
+                filter={lecturerFilter}
               />
               <Autocomplete
                 mt="xs"
-                size="md"
                 value={courseName}
                 onChange={setCourseName}
                 label="שם קורס"
@@ -300,7 +358,6 @@ function App() {
               />
               <Autocomplete
                 mt="xs"
-                size="md"
                 value={courseNumber}
                 onChange={setCourseNumber}
                 label="מספר קורס"
