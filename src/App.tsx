@@ -1,11 +1,11 @@
 import "@fortawesome/fontawesome-free/css/all.css"
 import {
+  Autocomplete,
   Button,
   DirectionProvider,
   MantineProvider,
   Select,
   Switch,
-  TextInput,
 } from "@mantine/core"
 import "@mantine/core/styles.css"
 import { useColorScheme } from "@mantine/hooks"
@@ -16,6 +16,9 @@ import Header from "./Header"
 import Footer from "./Footer"
 import { SEMESTERS, UNIVERSITY_SEMESTERS, YEARS } from "./constants"
 import { useQueryParam } from "./hooks"
+
+const stringIncludes = (x: string, y: string) =>
+  x.toLowerCase().includes(y.toLowerCase())
 
 const getResultsForYear = async (
   year: string,
@@ -39,7 +42,7 @@ const getResultsForYear = async (
     if (
       courseName !== undefined &&
       courseName !== "" &&
-      !course.name.includes(courseName)
+      !stringIncludes(course.name, courseName)
     ) {
       continue
     }
@@ -47,7 +50,7 @@ const getResultsForYear = async (
     if (
       courseNumber !== undefined &&
       courseNumber !== "" &&
-      !courseId.includes(courseNumber)
+      !stringIncludes(courseId, courseNumber)
     ) {
       continue
     }
@@ -60,7 +63,7 @@ const getResultsForYear = async (
         for (const lecturer of group.lecturer?.split(", ") ?? []) {
           let hasAll = true
           for (const part of parts) {
-            if (!lecturer.includes(part)) {
+            if (!stringIncludes(lecturer, part)) {
               hasAll = false
               break
             }
@@ -116,6 +119,30 @@ function App() {
   const universityLecturerRef = useRef<HTMLInputElement>(null)
   const universityCourseNameRef = useRef<HTMLInputElement>(null)
   const universityCourseNumberRef = useRef<HTMLInputElement>(null)
+
+  const [allLecturers, setAllLecturers] = useState<string[]>([])
+  const [allCourseNames, setAllCourseNames] = useState<string[]>([])
+  const [allCourseNumbers, setAllCourseNumbers] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch("https://arazim-project.com/courses/courses.json")
+      .then((r) => r.json())
+      .then((allCourses) => {
+        const allCourseNumbers = []
+        const allCourseNames = new Set<string>()
+        const allLecturers = new Set<string>()
+        for (const courseId in allCourses) {
+          allCourseNumbers.push(courseId)
+          allCourseNames.add(allCourses[courseId].name)
+          for (const lecturer of allCourses[courseId].lecturers) {
+            allLecturers.add(lecturer)
+          }
+        }
+        setAllCourseNumbers(allCourseNumbers.sort())
+        setAllCourseNames([...allCourseNames].sort())
+        setAllLecturers([...allLecturers].sort())
+      })
+  }, [])
 
   const searchUniversity = () => {
     universityFormRef.current!.reset()
@@ -249,32 +276,38 @@ function App() {
                 size="md"
                 clearable
               />
-              <TextInput
+              <Autocomplete
                 mt="xs"
                 size="md"
                 value={lecturer}
-                onChange={(e) => setLecturer(e.currentTarget.value)}
+                onChange={setLecturer}
                 label="מרצה"
                 leftSection={<i className="fa-solid fa-chalkboard-user" />}
                 onKeyDown={searchIfEnter}
+                data={allLecturers}
+                limit={20}
               />
-              <TextInput
+              <Autocomplete
                 mt="xs"
                 size="md"
                 value={courseName}
-                onChange={(e) => setCourseName(e.currentTarget.value)}
+                onChange={setCourseName}
                 label="שם קורס"
                 leftSection={<i className="fa-solid fa-graduation-cap" />}
                 onKeyDown={searchIfEnter}
+                data={allCourseNames}
+                limit={20}
               />
-              <TextInput
+              <Autocomplete
                 mt="xs"
                 size="md"
                 value={courseNumber}
-                onChange={(e) => setCourseNumber(e.currentTarget.value)}
+                onChange={setCourseNumber}
                 label="מספר קורס"
                 leftSection={<i className="fa-solid fa-hashtag" />}
                 onKeyDown={searchIfEnter}
+                data={allCourseNumbers}
+                limit={20}
               />
               <Switch
                 mt="md"
