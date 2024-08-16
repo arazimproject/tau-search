@@ -188,7 +188,7 @@ const App = () => {
     const promises: Promise<any>[] = []
     setStatus("טוען מראש את כל הקורסים כדי להאיץ את החיפוש...")
     for (const year of YEARS) {
-      for (const semester of Object.keys(SEMESTERS).sort()) {
+      for (const semester of Object.keys(SEMESTERS).sort().reverse()) {
         promises.push(cachedFetchJson(coursesUrlFor(year, semester)))
       }
     }
@@ -219,7 +219,7 @@ const App = () => {
     const resultCourses: [string, string, string, CourseInfo][] = []
 
     let years = YEARS
-    let semesters = Object.keys(SEMESTERS)
+    let semesters = Object.keys(SEMESTERS).sort().reverse()
 
     if (year !== undefined && year !== "") {
       years = [year]
