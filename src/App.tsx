@@ -424,7 +424,7 @@ const App = () => {
                     }}
                   >
                     <Pagination
-                      total={Math.floor(courses.length / RESULTS_PER_PAGE)}
+                      total={Math.ceil(courses.length / RESULTS_PER_PAGE)}
                       value={parseInt(activePage, 10)}
                       onChange={(v) => setActivePage(v.toString())}
                       mb="xs"
