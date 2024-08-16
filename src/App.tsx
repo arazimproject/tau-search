@@ -380,7 +380,7 @@ const App = () => {
               />
               <Button.Group my="lg" orientation="vertical">
                 <Button
-                  onClick={search}
+                  onClick={() => search()}
                   fullWidth
                   leftSection={<i className="fa-solid fa-search" />}
                   loading={loading}
