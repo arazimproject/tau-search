@@ -8,6 +8,7 @@ import {
   MantineProvider,
   OptionsFilter,
   Pagination,
+  SegmentedControl,
   Select,
   Switch,
 } from "@mantine/core"
@@ -75,8 +76,7 @@ const getResultsForYear = async (
   semester: string,
   courseName: string | undefined,
   courseNumber: string | undefined,
-  lecturer: string | undefined,
-  showOnlyWithExams: boolean
+  lecturer: string | undefined
 ) => {
   const results: [string, string, string, CourseInfo][] = []
   const semesterCourses = await cachedFetchJson(coursesUrlFor(year, semester))
@@ -119,19 +119,31 @@ const getResultsForYear = async (
       }
     }
 
-    if (showOnlyWithExams && !course.exam_links) {
-      continue
-    }
-
     results.push([courseId, year, semester, course])
   }
   return results
 }
 
+const sortMethods: Record<
+  string,
+  (
+    courses: [string, string, string, CourseInfo][]
+  ) => [string, string, string, CourseInfo][]
+> = {
+  semesterDescending: (x) => x,
+  semesterAscending: (x) => x.reverse(),
+  courseName: (x) => x.sort((a, b) => a[3].name.localeCompare(b[3].name)),
+  facultyName: (x) =>
+    x.sort((a, b) => a[3].faculty.localeCompare(b[3].faculty)),
+}
+
 const App = () => {
   const [courses, setCourses] = useState<
     [string, string, string, CourseInfo][]
-  >([])
+  >([]) // All courses matching search parameters above the search button.
+  const [filteredCourses, setFilteredCourses] = useState<
+    [string, string, string, CourseInfo][]
+  >([]) // Filtered/sorted `courses`, using the parameters below the search button.
   const [loading, setLoading] = useState(false)
   const [searchTime, setSearchTime] = useState(0)
   const colorScheme = useColorScheme()
@@ -160,8 +172,24 @@ const App = () => {
   const [status, setStatus] = useState("")
   const [performedSearch, setPerformedSearch] = useState(false)
   const [activePage, setActivePage] = useQueryParam("page", "1")
+  const [sortMethod, setSortMethod] = useQueryParam(
+    "sortBy",
+    "semesterDescending"
+  )
 
   const clearStatus = () => setStatus("")
+
+  useEffect(() => {
+    let result = courses
+    if (showOnlyWithExams === "true") {
+      result = courses.filter(
+        (course) =>
+          course[3].exam_links?.length !== undefined &&
+          course[3].exam_links.length > 0
+      )
+    }
+    setFilteredCourses(sortMethods[sortMethod]([...result]))
+  }, [courses, showOnlyWithExams, sortMethod])
 
   useEffect(() => {
     setStatus("טוען מידע על כל הקורסים להשלמה אוטומטית...")
@@ -232,14 +260,7 @@ const App = () => {
     for (const year of years) {
       for (const semester of semesters) {
         promises.push(
-          getResultsForYear(
-            year,
-            semester,
-            courseName,
-            courseNumber,
-            lecturer,
-            showOnlyWithExams === "true"
-          )
+          getResultsForYear(year, semester, courseName, courseNumber, lecturer)
         )
       }
     }
@@ -368,17 +389,8 @@ const App = () => {
                 data={allCourseNumbers}
                 limit={20}
               />
-              <Switch
-                mt="md"
-                label="הצג רק קורסים עם מבחנים"
-                checked={showOnlyWithExams === "true"}
-                onChange={(e) =>
-                  setShowOnlyWithExams(
-                    e.currentTarget.checked ? "true" : "false"
-                  )
-                }
-              />
-              <Button.Group my="lg" orientation="vertical">
+
+              <Button.Group my="md" orientation="vertical">
                 <Button
                   onClick={() => search()}
                   fullWidth
@@ -396,21 +408,43 @@ const App = () => {
                 </Button>
               </Button.Group>
               <Switch
-                mb="xs"
+                label="הצג רק קורסים עם מבחנים"
+                checked={showOnlyWithExams === "true"}
+                onChange={(e) =>
+                  setShowOnlyWithExams(
+                    e.currentTarget.checked ? "true" : "false"
+                  )
+                }
+              />
+              <Switch
+                my="xs"
                 label="תצוגה קומפקטית"
                 checked={compactView === "true"}
                 onChange={(e) =>
                   setCompactView(e.currentTarget.checked ? "true" : "false")
                 }
               />
+              <p>מיין לפי...</p>
+              <SegmentedControl
+                my="xs"
+                flex="none"
+                data={[
+                  { label: "ישן לחדש", value: "semesterAscending" },
+                  { label: "חדש לישן", value: "semesterDescending" },
+                  { label: "שם קורס", value: "courseName" },
+                  { label: "שם פקולטה", value: "facultyName" },
+                ]}
+                value={sortMethod}
+                onChange={setSortMethod}
+              />
 
-              {courses.length === 0 && performedSearch && (
+              {filteredCourses.length === 0 && performedSearch && (
                 <p style={{ textAlign: "center" }}>לא נמצאו תוצאות.</p>
               )}
-              {courses.length !== 0 && (
+              {filteredCourses.length !== 0 && (
                 <>
                   <div style={{ display: "flex", marginBottom: 10 }}>
-                    מספר תוצאות: {courses.length}
+                    מספר תוצאות: {filteredCourses.length}
                     <span style={{ flexGrow: 1 }} />
                     <p>
                       זמן חיפוש: {Math.round((searchTime / 1000) * 100) / 100}s
@@ -423,16 +457,20 @@ const App = () => {
                       justifyContent: "center",
                     }}
                   >
-                    <Pagination
-                      total={Math.ceil(courses.length / RESULTS_PER_PAGE)}
-                      value={parseInt(activePage, 10)}
-                      onChange={(v) => setActivePage(v.toString())}
-                      mb="xs"
-                    />
+                    {filteredCourses.length > 10 && (
+                      <Pagination
+                        total={Math.ceil(
+                          filteredCourses.length / RESULTS_PER_PAGE
+                        )}
+                        value={parseInt(activePage, 10)}
+                        onChange={(v) => setActivePage(v.toString())}
+                        mb="xs"
+                      />
+                    )}
                   </div>
                 </>
               )}
-              {courses
+              {filteredCourses
                 .slice(
                   RESULTS_PER_PAGE * (parseInt(activePage, 10) - 1),
                   RESULTS_PER_PAGE * parseInt(activePage, 10)
