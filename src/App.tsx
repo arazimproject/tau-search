@@ -485,6 +485,24 @@ const App = () => {
                     course={course}
                   />
                 ))}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {filteredCourses.length > 10 && (
+                    <Pagination
+                      total={Math.ceil(
+                        filteredCourses.length / RESULTS_PER_PAGE
+                      )}
+                      value={parseInt(activePage, 10)}
+                      onChange={(v) => setActivePage(v.toString())}
+                      mb="xs"
+                    />
+                  )}
+                </div>
             </div>
           </div>
           <Footer />
