@@ -1,8 +1,8 @@
+import { Button, Tooltip } from "@mantine/core"
 import ColorHash from "color-hash"
-import { CourseInfo } from "./typing"
-import { Button } from "@mantine/core"
-import { UNIVERSITY_SEMESTERS } from "./constants"
 import React from "react"
+import { UNIVERSITY_SEMESTERS } from "./constants"
+import { CourseInfo } from "./typing"
 
 const hash = new ColorHash()
 
@@ -103,21 +103,24 @@ const CourseCard = ({
       )}
 
       {(course.exam_links ?? []).map((examLink, index) => (
-        <Button
-          component="a"
-          href={examLink}
-          key={index}
-          fullWidth
-          mb="xs"
-          variant="white"
-          leftSection={<i className="fa-solid fa-file-pdf" />}
-        >
-          {
-            decodeURIComponent(examLink.split("/").reverse()[0]).split(
-              ".pdf"
-            )[0]
-          }
-        </Button>
+        <Tooltip label="זהו קישור למאגר הבחינות במודל. עליכם להיות מחוברים למודל, אחרת תופיע השגיאה לא נמצאו כאן אורחים״">
+          <Button
+            component="a"
+            href={examLink}
+            key={index}
+            fullWidth
+            mb="xs"
+            variant="white"
+            leftSection={<i className="fa-solid fa-file-pdf" />}
+            target="_blank"
+          >
+            {
+              decodeURIComponent(examLink.split("/").reverse()[0]).split(
+                ".pdf"
+              )[0]
+            }
+          </Button>
+        </Tooltip>
       ))}
 
       <p style={{ fontSize: 12, textAlign: "end" }}>
