@@ -103,11 +103,13 @@ const CourseCard = ({
       )}
 
       {(course.exam_links ?? []).map((examLink, index) => (
-        <Tooltip label="זהו קישור למאגר הבחינות במודל. עליכם להיות מחוברים למודל, אחרת תופיע השגיאה לא נמצאו כאן אורחים״">
+        <Tooltip
+          label="זהו קישור למאגר הבחינות במודל. עליכם להיות מחוברים למודל, אחרת תופיע השגיאה לא נמצאו כאן אורחים״"
+          key={index}
+        >
           <Button
             component="a"
             href={examLink}
-            key={index}
             fullWidth
             mb="xs"
             variant="white"

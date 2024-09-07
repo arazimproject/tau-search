@@ -11,16 +11,17 @@ import {
   SegmentedControl,
   Select,
   Switch,
+  Tooltip,
 } from "@mantine/core"
 import "@mantine/core/styles.css"
 import { useColorScheme } from "@mantine/hooks"
 import { useEffect, useRef, useState } from "react"
 import CourseCard from "./CourseCard"
-import { CourseInfo } from "./typing"
-import Header from "./Header"
 import Footer from "./Footer"
+import Header from "./Header"
 import { SEMESTERS, UNIVERSITY_SEMESTERS, YEARS } from "./constants"
 import { useQueryParam } from "./hooks"
+import { CourseInfo } from "./typing"
 
 const RESULTS_PER_PAGE = 10
 
@@ -76,7 +77,10 @@ const getResultsForYear = async (
   semester: string,
   courseName: string | undefined,
   courseNumber: string | undefined,
-  lecturer: string | undefined
+  lecturer: string | undefined,
+  faculty: string | undefined,
+  building: string | undefined,
+  room: string | undefined
 ) => {
   const results: [string, string, string, CourseInfo][] = []
   const semesterCourses = await cachedFetchJson(coursesUrlFor(year, semester))
@@ -95,6 +99,36 @@ const getResultsForYear = async (
       courseNumber !== undefined &&
       courseNumber !== "" &&
       !stringIncludes(courseId, courseNumber)
+    ) {
+      continue
+    }
+
+    if (
+      faculty !== undefined &&
+      faculty !== "" &&
+      !stringIncludes(course.faculty, faculty)
+    ) {
+      continue
+    }
+
+    if (
+      room !== undefined &&
+      room !== "" &&
+      !course.groups.some((group) =>
+        group.lessons.some((lesson) => stringIncludes(lesson.room, room))
+      )
+    ) {
+      continue
+    }
+
+    if (
+      building !== undefined &&
+      building !== "" &&
+      !course.groups.some((group) =>
+        group.lessons.some((lesson) =>
+          stringIncludes(lesson.building, building)
+        )
+      )
     ) {
       continue
     }
@@ -137,6 +171,8 @@ const sortMethods: Record<
     x.sort((a, b) => a[3].faculty.localeCompare(b[3].faculty)),
 }
 
+let allCourseInfo: any = {}
+
 const App = () => {
   const [courses, setCourses] = useState<
     [string, string, string, CourseInfo][]
@@ -148,6 +184,7 @@ const App = () => {
   const [searchTime, setSearchTime] = useState(0)
   const colorScheme = useColorScheme()
 
+  const [editSearch, setEditSearch] = useQueryParam("edit", "true")
   const [compactView, setCompactView] = useQueryParam("compactView", "false")
   const [showOnlyWithExams, setShowOnlyWithExams] = useQueryParam(
     "showOnlyWithExams",
@@ -158,6 +195,9 @@ const App = () => {
   const [lecturer, setLecturer] = useQueryParam("lecturer")
   const [courseName, setCourseName] = useQueryParam("courseName")
   const [courseNumber, setCourseNumber] = useQueryParam("courseNumber")
+  const [faculty, setFaculty] = useQueryParam("faculty")
+  const [building, setBuilding] = useQueryParam("building")
+  const [room, setRoom] = useQueryParam("room")
 
   const universityFormRef = useRef<HTMLFormElement>(null)
   const universityYearRef = useRef<HTMLInputElement>(null)
@@ -169,6 +209,9 @@ const App = () => {
   const [allLecturers, setAllLecturers] = useState<string[]>([])
   const [allCourseNames, setAllCourseNames] = useState<string[]>([])
   const [allCourseNumbers, setAllCourseNumbers] = useState<string[]>([])
+  const [allFaculties, setAllFaculties] = useState<string[]>([])
+  const [allBuildings, setAllBuildings] = useState<string[]>([])
+  const [allRooms, setAllRooms] = useState<string[]>([])
   const [status, setStatus] = useState("")
   const [performedSearch, setPerformedSearch] = useState(false)
   const [activePage, setActivePage] = useQueryParam("page", "1")
@@ -196,19 +239,24 @@ const App = () => {
     fetch("https://arazim-project.com/courses/courses.json")
       .then((r) => r.json())
       .then((allCourses) => {
+        allCourseInfo = allCourses
+
         const allCourseNumbers = []
         const allCourseNames = new Set<string>()
         const allLecturers = new Set<string>()
+        const allFaculties = new Set<string>()
         for (const courseId in allCourses) {
           allCourseNumbers.push(courseId)
           allCourseNames.add(allCourses[courseId].name)
           for (const lecturer of allCourses[courseId].lecturers) {
             allLecturers.add(lecturer)
           }
+          allFaculties.add(allCourses[courseId].faculty)
         }
         setAllCourseNumbers(allCourseNumbers.sort())
         setAllCourseNames([...allCourseNames].sort())
         setAllLecturers([...allLecturers].sort())
+        setAllFaculties([...allFaculties].sort())
         clearStatus()
       })
       .catch(clearStatus)
@@ -220,7 +268,30 @@ const App = () => {
         promises.push(cachedFetchJson(coursesUrlFor(year, semester)))
       }
     }
-    Promise.all(promises).then(clearStatus).catch(clearStatus)
+    Promise.all(promises)
+      .then(() => {
+        // Generate allBuildings and allRooms from last semester
+        cachedFetchJson(coursesUrlFor(YEARS[0], "א׳")).then((courses) => {
+          const allBuildings = new Set<string>()
+          const allRooms = new Set<string>()
+          for (const course of Object.values(courses) as CourseInfo[]) {
+            for (const group of course.groups) {
+              for (const lesson of group.lessons) {
+                if (lesson.building !== "") {
+                  allBuildings.add(lesson.building)
+                }
+                if (lesson.room !== "") {
+                  allRooms.add(lesson.room)
+                }
+              }
+            }
+          }
+          setAllBuildings([...allBuildings].sort())
+          setAllRooms([...allRooms].sort())
+        })
+        clearStatus()
+      })
+      .catch(clearStatus)
   }, [])
 
   const searchUniversity = () => {
@@ -260,7 +331,17 @@ const App = () => {
     for (const year of years) {
       for (const semester of semesters) {
         promises.push(
-          getResultsForYear(year, semester, courseName, courseNumber, lecturer)
+          getResultsForYear(
+            year,
+            semester,
+            courseName,
+            // Remove the course name that's added for readibility only.
+            courseNumber.split("(")[0].trim(),
+            lecturer,
+            faculty,
+            building,
+            room
+          )
         )
       }
     }
@@ -295,6 +376,17 @@ const App = () => {
     }
   }, [])
 
+  let universityUnavailableReason = ""
+  if (year === "") {
+    universityUnavailableReason = "חיפוש לאורך כל השנים"
+  } else if (lecturer === "" && courseName === "" && courseNumber === "") {
+    universityUnavailableReason = "חיפוש ללא מספר/שם קורס וללא שם מורה"
+  } else if (building !== "") {
+    universityUnavailableReason = "חיפוש לפי בניין"
+  } else if (room !== "") {
+    universityUnavailableReason = "חיפוש לפי חדר"
+  }
+
   return (
     <DirectionProvider>
       <MantineProvider forceColorScheme={colorScheme}>
@@ -324,12 +416,10 @@ const App = () => {
                 flexDirection: "column",
               }}
             >
-              <h1 style={{ textAlign: "center", marginTop: 10 }}>
-                חיפוש קורסים
-              </h1>
               {status !== "" && (
                 <div
                   style={{
+                    marginTop: 10,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -339,75 +429,183 @@ const App = () => {
                   {status}
                 </div>
               )}
-              <Select
+              <Button
                 mt="xs"
-                value={year}
-                onChange={(v) => setYear(v ?? "")}
-                defaultValue="2025"
-                label="שנה"
-                data={YEARS}
-                leftSection={<i className="fa-solid fa-calendar" />}
-                clearable
-              />
-              <Select
-                mt="xs"
-                label="סמסטר"
-                value={semester}
-                onChange={(v) => setSemester(v ?? "")}
-                data={["א׳", "ב׳"]}
-                leftSection={<i className="fa-solid fa-cloud-sun" />}
-                clearable
-              />
-              <Autocomplete
-                mt="xs"
-                value={lecturer}
-                onChange={setLecturer}
-                label="מרצה"
-                leftSection={<i className="fa-solid fa-chalkboard-user" />}
-                onKeyDown={searchIfEnter}
-                data={allLecturers}
-                limit={20}
-                filter={lecturerFilter}
-              />
-              <Autocomplete
-                mt="xs"
-                value={courseName}
-                onChange={setCourseName}
-                label="שם קורס"
-                leftSection={<i className="fa-solid fa-graduation-cap" />}
-                onKeyDown={searchIfEnter}
-                data={allCourseNames}
-                limit={20}
-              />
-              <Autocomplete
-                mt="xs"
-                value={courseNumber}
-                onChange={setCourseNumber}
-                label="מספר קורס"
-                leftSection={<i className="fa-solid fa-hashtag" />}
-                onKeyDown={searchIfEnter}
-                data={allCourseNumbers}
-                limit={20}
-              />
+                leftSection={
+                  <i
+                    className={
+                      editSearch === "true"
+                        ? "fa-solid fa-chevron-up"
+                        : "fa-solid fa-chevron-down"
+                    }
+                  />
+                }
+                fullWidth
+                flex="none"
+                onClick={() =>
+                  setEditSearch(editSearch === "true" ? "false" : "true")
+                }
+              >
+                {editSearch === "true" ? "הסתר" : "הצג"} פרמטרים לחיפוש
+              </Button>
 
-              <Button.Group my="md" orientation="vertical">
-                <Button
-                  onClick={() => search()}
-                  fullWidth
-                  leftSection={<i className="fa-solid fa-search" />}
-                  loading={loading}
-                >
-                  חיפוש
-                </Button>
-                <Button
-                  onClick={searchUniversity}
-                  fullWidth
-                  leftSection={<i className="fa-solid fa-school" />}
-                >
-                  חיפוש במערכת של האוניברסיטה
-                </Button>
-              </Button.Group>
+              {editSearch === "true" && (
+                <>
+                  <Select
+                    mt="xs"
+                    value={year}
+                    onChange={(v) => setYear(v ?? "")}
+                    defaultValue="2025"
+                    label="שנה"
+                    data={YEARS}
+                    leftSection={<i className="fa-solid fa-calendar" />}
+                    clearable
+                  />
+                  <Select
+                    mt="xs"
+                    label="סמסטר"
+                    value={semester}
+                    onChange={(v) => setSemester(v ?? "")}
+                    data={["א׳", "ב׳"]}
+                    leftSection={<i className="fa-solid fa-cloud-sun" />}
+                    clearable
+                  />
+                  <Autocomplete
+                    mt="xs"
+                    value={lecturer}
+                    onChange={setLecturer}
+                    label="מרצה"
+                    leftSection={
+                      allLecturers.length === 0 ? (
+                        <Loader size="xs" />
+                      ) : (
+                        <i className="fa-solid fa-chalkboard-user" />
+                      )
+                    }
+                    onKeyDown={searchIfEnter}
+                    data={allLecturers}
+                    limit={20}
+                    filter={lecturerFilter}
+                  />
+                  <Autocomplete
+                    mt="xs"
+                    value={courseName}
+                    onChange={setCourseName}
+                    label="שם קורס"
+                    leftSection={
+                      allCourseNames.length === 0 ? (
+                        <Loader size="xs" />
+                      ) : (
+                        <i className="fa-solid fa-graduation-cap" />
+                      )
+                    }
+                    onKeyDown={searchIfEnter}
+                    data={allCourseNames}
+                    limit={20}
+                  />
+                  <Autocomplete
+                    mt="xs"
+                    value={courseNumber}
+                    onChange={setCourseNumber}
+                    label="מספר קורס"
+                    leftSection={
+                      allCourseNumbers.length === 0 ? (
+                        <Loader size="xs" />
+                      ) : (
+                        <i className="fa-solid fa-hashtag" />
+                      )
+                    }
+                    onKeyDown={searchIfEnter}
+                    data={allCourseNumbers.map(
+                      (courseNumber) =>
+                        `${courseNumber} (${allCourseInfo[courseNumber]?.name})`
+                    )}
+                    limit={20}
+                  />
+                  <Autocomplete
+                    mt="xs"
+                    value={faculty}
+                    onChange={setFaculty}
+                    label="פקולטה"
+                    leftSection={
+                      allFaculties.length === 0 ? (
+                        <Loader size="xs" />
+                      ) : (
+                        <i className="fa-solid fa-school" />
+                      )
+                    }
+                    onKeyDown={searchIfEnter}
+                    data={allFaculties}
+                    limit={20}
+                  />
+                  <Autocomplete
+                    mt="xs"
+                    value={building}
+                    onChange={setBuilding}
+                    label="בניין"
+                    leftSection={
+                      allBuildings.length === 0 ? (
+                        <Loader size="xs" />
+                      ) : (
+                        <i className="fa-solid fa-building-user" />
+                      )
+                    }
+                    onKeyDown={searchIfEnter}
+                    data={allBuildings}
+                    limit={20}
+                  />
+                  <Autocomplete
+                    mt="xs"
+                    value={room}
+                    onChange={setRoom}
+                    label="חדר"
+                    leftSection={
+                      allRooms.length === 0 ? (
+                        <Loader size="xs" />
+                      ) : (
+                        <i className="fa-solid fa-door-closed" />
+                      )
+                    }
+                    onKeyDown={searchIfEnter}
+                    data={allRooms}
+                    limit={20}
+                  />
+
+                  <Button.Group mt="md" orientation="vertical">
+                    <Button
+                      onClick={() => search()}
+                      fullWidth
+                      leftSection={<i className="fa-solid fa-search" />}
+                      loading={loading}
+                    >
+                      חיפוש
+                    </Button>
+                    <Tooltip
+                      // Hack to show tooltip optionally
+                      events={
+                        universityUnavailableReason === ""
+                          ? { hover: false, focus: false, touch: false }
+                          : undefined
+                      }
+                      label={
+                        "מערכת החיפוש של האוניברסיטה לא תומכת ב" +
+                        universityUnavailableReason
+                      }
+                    >
+                      <Button
+                        onClick={searchUniversity}
+                        fullWidth
+                        leftSection={<i className="fa-solid fa-school" />}
+                        disabled={universityUnavailableReason !== ""}
+                      >
+                        חיפוש במערכת של האוניברסיטה
+                      </Button>
+                    </Tooltip>
+                  </Button.Group>
+                </>
+              )}
               <Switch
+                mt="xs"
                 label="הצג רק קורסים עם מבחנים"
                 checked={showOnlyWithExams === "true"}
                 onChange={(e) =>
@@ -424,7 +622,13 @@ const App = () => {
                   setCompactView(e.currentTarget.checked ? "true" : "false")
                 }
               />
-              <p>מיין לפי...</p>
+              <p>
+                <i
+                  className="fa-solid fa-arrow-down-a-z"
+                  style={{ marginInlineEnd: 5 }}
+                />
+                מיין לפי...
+              </p>
               <SegmentedControl
                 my="xs"
                 flex="none"
@@ -485,24 +689,22 @@ const App = () => {
                     course={course}
                   />
                 ))}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {filteredCourses.length > 10 && (
-                    <Pagination
-                      total={Math.ceil(
-                        filteredCourses.length / RESULTS_PER_PAGE
-                      )}
-                      value={parseInt(activePage, 10)}
-                      onChange={(v) => setActivePage(v.toString())}
-                      mb="xs"
-                    />
-                  )}
-                </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {filteredCourses.length > 10 && (
+                  <Pagination
+                    total={Math.ceil(filteredCourses.length / RESULTS_PER_PAGE)}
+                    value={parseInt(activePage, 10)}
+                    onChange={(v) => setActivePage(v.toString())}
+                    mb="xs"
+                  />
+                )}
+              </div>
             </div>
           </div>
           <Footer />

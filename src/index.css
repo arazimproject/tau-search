@@ -108,3 +108,7 @@ h5,
 h6 {
   margin: 0;
 }
+
+.mantine-Switch-track {
+  cursor: pointer;
+}
