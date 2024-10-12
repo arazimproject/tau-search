@@ -2,7 +2,8 @@ import { Button, Tooltip } from "@mantine/core"
 import ColorHash from "color-hash"
 import React from "react"
 import { UNIVERSITY_SEMESTERS } from "./constants"
-import { CourseInfo } from "./typing"
+import GradeChart from "./GradeChart"
+import { CourseInfo, SemesterGrades } from "./typing"
 
 const hash = new ColorHash()
 
@@ -12,12 +13,16 @@ const CourseCard = ({
   semester,
   courseId,
   compactView,
+  showTAUFactor,
+  grades,
 }: {
   course: CourseInfo
   year: string
   semester: string
   courseId: string
   compactView?: boolean
+  showTAUFactor?: boolean
+  grades?: Record<string, SemesterGrades[]>
 }) => {
   const courseTeachers = new Set<string>()
   for (const group of course.groups) {
@@ -51,9 +56,13 @@ const CourseCard = ({
 
       {compactView || (
         <>
+          {grades !== undefined && showTAUFactor && (
+            <GradeChart grades={grades} />
+          )}
           {course.exams.map((exam, index) => (
             <p key={index}>
-              <b>מועד {exam.moed}':</b> {exam.date} ב-{exam.hour}
+              <b>מועד {exam.moed}':</b>{" "}
+              {exam.date ? exam.date + " ב-" + exam.hour : ""}
             </p>
           ))}
 
@@ -66,8 +75,12 @@ const CourseCard = ({
               </p>
               {group.lessons.map((lesson, lessonIndex) => (
                 <p key={lessonIndex}>
-                  {lesson.type} ב{lesson.building} {lesson.room} ביום{" "}
-                  {lesson.day}' בשעות {lesson.time}
+                  {lesson.type}{" "}
+                  {lesson.building
+                    ? "ב" + lesson.building + " " + lesson.room + " "
+                    : ""}
+                  {lesson.day ? "ביום " + lesson.day + "' " : ""}
+                  {lesson.time ? "בשעות " + lesson.time : ""}
                 </p>
               ))}
             </React.Fragment>

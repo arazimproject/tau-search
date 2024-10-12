@@ -20,3 +20,17 @@ export interface CourseInfo {
   }[]
   exam_links?: string[]
 }
+
+export interface SemesterGrades {
+  moed: number
+  distribution: number[]
+  limits?: number[]
+}
+
+export interface GradesInfo {
+  [course: string]: {
+    [semester: string]: {
+      [group: string]: SemesterGrades[]
+    }
+  }
+}

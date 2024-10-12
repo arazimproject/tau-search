@@ -1,4 +1,5 @@
 import "@fortawesome/fontawesome-free/css/all.css"
+import "@mantine/charts/styles.css"
 import {
   Autocomplete,
   Button,
@@ -21,7 +22,8 @@ import Footer from "./Footer"
 import Header from "./Header"
 import { SEMESTERS, UNIVERSITY_SEMESTERS, YEARS } from "./constants"
 import { useQueryParam } from "./hooks"
-import { CourseInfo } from "./typing"
+import { CourseInfo, GradesInfo } from "./typing"
+import { cachedFetchJson } from "./utilities"
 
 const RESULTS_PER_PAGE = 10
 
@@ -57,20 +59,6 @@ const coursesUrlFor = (year: string, semester: string) =>
   year +
   SEMESTERS[semester] +
   ".json"
-
-const requestCache: Record<string, any> = {}
-const requestPromises: Record<string, Promise<any>> = {}
-const cachedFetchJson = async (url: string) => {
-  if (requestCache[url] !== undefined) {
-    return requestCache[url]
-  }
-  if (requestPromises[url] === undefined) {
-    requestPromises[url] = fetch(url).then((r) => r.json())
-  }
-  const json = await requestPromises[url]
-  requestCache[url] = json
-  return json
-}
 
 const getResultsForYear = async (
   year: string,
@@ -174,6 +162,7 @@ const sortMethods: Record<
 let allCourseInfo: any = {}
 
 const App = () => {
+  const [grades, setGrades] = useState<GradesInfo>({})
   const [courses, setCourses] = useState<
     [string, string, string, CourseInfo][]
   >([]) // All courses matching search parameters above the search button.
@@ -188,6 +177,10 @@ const App = () => {
   const [compactView, setCompactView] = useQueryParam("compactView", "false")
   const [showOnlyWithExams, setShowOnlyWithExams] = useQueryParam(
     "showOnlyWithExams",
+    "false"
+  )
+  const [showTAUFactor, setShowTAUFactor] = useQueryParam(
+    "showTAUFactor",
     "false"
   )
   const [year, setYear] = useQueryParam("year", "2025")
@@ -225,7 +218,7 @@ const App = () => {
   useEffect(() => {
     let result = courses
     if (showOnlyWithExams === "true") {
-      result = courses.filter(
+      result = result.filter(
         (course) =>
           course[3].exam_links?.length !== undefined &&
           course[3].exam_links.length > 0
@@ -270,6 +263,11 @@ const App = () => {
     }
     Promise.all(promises)
       .then(() => {
+        setStatus("טוען את הציונים מ-TAU Factor...")
+        return cachedFetchJson("https://arazim-project.com/courses/grades.json")
+      })
+      .then((grades) => {
+        setGrades(grades)
         // Generate allBuildings and allRooms from last semester
         cachedFetchJson(coursesUrlFor(YEARS[0], "א׳")).then((courses) => {
           const allBuildings = new Set<string>()
@@ -615,6 +613,14 @@ const App = () => {
                 }
               />
               <Switch
+                mt="xs"
+                label="הצג ציונים מ-TAU Factor"
+                checked={showTAUFactor === "true"}
+                onChange={(e) =>
+                  setShowTAUFactor(e.currentTarget.checked ? "true" : "false")
+                }
+              />
+              <Switch
                 my="xs"
                 label="תצוגה קומפקטית"
                 checked={compactView === "true"}
@@ -683,10 +689,17 @@ const App = () => {
                   <CourseCard
                     key={index}
                     compactView={compactView === "true"}
+                    showTAUFactor={showTAUFactor === "true"}
                     courseId={courseId}
                     year={year}
                     semester={semester}
                     course={course}
+                    grades={
+                      (grades[courseId] ?? {})[
+                        (parseInt(year, 10) - 1).toString() +
+                          SEMESTERS[semester]
+                      ]
+                    }
                   />
                 ))}
               <div
