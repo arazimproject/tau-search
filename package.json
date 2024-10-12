@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.5.1",
+    "@mantine/charts": "^7.13.2",
     "@mantine/core": "^7.7.0",
     "@mantine/hooks": "^7.7.0",
     "color-hash": "^2.0.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "recharts": "^2.13.0"
   },
   "devDependencies": {
     "@types/color-hash": "^1.0.5",
