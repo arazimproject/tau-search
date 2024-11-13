@@ -3,7 +3,6 @@ import ColorHash from "color-hash"
 import React from "react"
 import { UNIVERSITY_SEMESTERS } from "./constants"
 import GradeChart from "./GradeChart"
-import { CourseInfo, SemesterGrades } from "./typing"
 
 const hash = new ColorHash()
 
@@ -16,19 +15,19 @@ const CourseCard = ({
   showTAUFactor,
   grades,
 }: {
-  course: CourseInfo
+  course: SemesterCourseInfo
   year: string
   semester: string
   courseId: string
   compactView?: boolean
   showTAUFactor?: boolean
-  grades?: Record<string, SemesterGrades[]>
+  grades?: Record<string, SemesterGroupGradeInfo[] | undefined>
 }) => {
   const courseTeachers = new Set<string>()
-  for (const group of course.groups) {
+  for (const group of course.groups ?? []) {
     if (group.lecturer !== null && group.lecturer !== "") {
-      for (const lecturer of group.lecturer.split(", ")) {
-        courseTeachers.add(lecturer)
+      for (const lecturer of group.lecturer?.split(",") ?? []) {
+        courseTeachers.add(lecturer.trim())
       }
     }
   }
@@ -59,21 +58,21 @@ const CourseCard = ({
           {grades !== undefined && showTAUFactor && (
             <GradeChart grades={grades} />
           )}
-          {course.exams.map((exam, index) => (
+          {course.exams?.map((exam, index) => (
             <p key={index}>
               <b>מועד {exam.moed}':</b>{" "}
               {exam.date ? exam.date + " ב-" + exam.hour : ""}
             </p>
           ))}
 
-          {course.groups.map((group, index) => (
+          {course.groups?.map((group, index) => (
             <React.Fragment key={index}>
               <p>
                 <b>
                   {group.lecturer} (קבוצה {group.group})
                 </b>
               </p>
-              {group.lessons.map((lesson, lessonIndex) => (
+              {group.lessons?.map((lesson, lessonIndex) => (
                 <p key={lessonIndex}>
                   {lesson.type}{" "}
                   {lesson.building
@@ -91,7 +90,7 @@ const CourseCard = ({
               component="a"
               target="_blank"
               href={`https://www.ims.tau.ac.il/Tal/Syllabus/Syllabus_L.aspx?course=${courseId}${
-                course.groups[0].group
+                (course.groups ?? [])[0]?.group
               }&year=${parseInt(year, 10) - 1}`}
               variant="white"
               style={{ width: "50%" }}
@@ -102,7 +101,7 @@ const CourseCard = ({
             <Button
               component="a"
               href={`https://www.ims.tau.ac.il/Tal/kr/Drishot_L.aspx?kurs=${courseId}&kv=${
-                course.groups[0].group
+                (course.groups ?? [])[0]?.group
               }&sem=${parseInt(year, 10) - 1}${UNIVERSITY_SEMESTERS[semester]}`}
               target="_blank"
               variant="white"

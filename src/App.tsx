@@ -20,10 +20,8 @@ import { useEffect, useRef, useState } from "react"
 import CourseCard from "./CourseCard"
 import Footer from "./Footer"
 import Header from "./Header"
-import { SEMESTERS, UNIVERSITY_SEMESTERS, YEARS } from "./constants"
-import { useQueryParam } from "./hooks"
-import { CourseInfo, GradesInfo } from "./typing"
-import { cachedFetchJson } from "./utilities"
+import { SEMESTERS, UNIVERSITY_SEMESTERS } from "./constants"
+import { cachedFetch, useQueryParam, useURLValue } from "./hooks"
 
 const RESULTS_PER_PAGE = 10
 
@@ -55,7 +53,7 @@ const lecturerFilter: OptionsFilter = ({ options, search, limit }) => {
 }
 
 const coursesUrlFor = (year: string, semester: string) =>
-  "https://arazim-project.com/courses/courses-" +
+  "https://arazim-project.com/data/courses-" +
   year +
   SEMESTERS[semester] +
   ".json"
@@ -70,15 +68,17 @@ const getResultsForYear = async (
   building: string | undefined,
   room: string | undefined
 ) => {
-  const results: [string, string, string, CourseInfo][] = []
-  const semesterCourses = await cachedFetchJson(coursesUrlFor(year, semester))
+  const results: [string, string, string, SemesterCourseInfo][] = []
+  const semesterCourses = await cachedFetch<SemesterCourses>(
+    coursesUrlFor(year, semester)
+  )
   for (const courseId in semesterCourses) {
-    const course = semesterCourses[courseId] as CourseInfo
+    const course = semesterCourses[courseId] as SemesterCourseInfo
 
     if (
       courseName !== undefined &&
       courseName !== "" &&
-      !stringIncludes(course.name, courseName)
+      !stringIncludes(course.name ?? "", courseName)
     ) {
       continue
     }
@@ -94,7 +94,7 @@ const getResultsForYear = async (
     if (
       faculty !== undefined &&
       faculty !== "" &&
-      !stringIncludes(course.faculty, faculty)
+      !stringIncludes(course.faculty ?? "", faculty)
     ) {
       continue
     }
@@ -102,8 +102,8 @@ const getResultsForYear = async (
     if (
       room !== undefined &&
       room !== "" &&
-      !course.groups.some((group) =>
-        group.lessons.some((lesson) => stringIncludes(lesson.room, room))
+      !course.groups?.some((group) =>
+        group.lessons?.some((lesson) => stringIncludes(lesson.room ?? "", room))
       )
     ) {
       continue
@@ -112,9 +112,9 @@ const getResultsForYear = async (
     if (
       building !== undefined &&
       building !== "" &&
-      !course.groups.some((group) =>
-        group.lessons.some((lesson) =>
-          stringIncludes(lesson.building, building)
+      !course.groups?.some((group) =>
+        group.lessons?.some((lesson) =>
+          stringIncludes(lesson.building ?? "", building)
         )
       )
     ) {
@@ -123,7 +123,7 @@ const getResultsForYear = async (
 
     if (lecturer !== undefined && lecturer !== "") {
       let hasLecturer = false
-      for (const group of course.groups) {
+      for (const group of course.groups ?? []) {
         for (const l of group.lecturer?.split(", ") ?? []) {
           if (stringIncludesWords(l, lecturer)) {
             hasLecturer = true
@@ -149,25 +149,25 @@ const getResultsForYear = async (
 const sortMethods: Record<
   string,
   (
-    courses: [string, string, string, CourseInfo][]
-  ) => [string, string, string, CourseInfo][]
+    courses: [string, string, string, SemesterCourseInfo][]
+  ) => [string, string, string, SemesterCourseInfo][]
 > = {
   semesterDescending: (x) => x,
   semesterAscending: (x) => x.reverse(),
-  courseName: (x) => x.sort((a, b) => a[3].name.localeCompare(b[3].name)),
+  courseName: (x) => x.sort((a, b) => a[3].name!.localeCompare(b[3].name!)),
   facultyName: (x) =>
-    x.sort((a, b) => a[3].faculty.localeCompare(b[3].faculty)),
+    x.sort((a, b) => a[3].faculty!.localeCompare(b[3].faculty!)),
 }
 
 let allCourseInfo: any = {}
 
 const App = () => {
-  const [grades, setGrades] = useState<GradesInfo>({})
+  const [grades, setGrades] = useState<AllTimeGrades>({})
   const [courses, setCourses] = useState<
-    [string, string, string, CourseInfo][]
+    [string, string, string, SemesterCourseInfo][]
   >([]) // All courses matching search parameters above the search button.
   const [filteredCourses, setFilteredCourses] = useState<
-    [string, string, string, CourseInfo][]
+    [string, string, string, SemesterCourseInfo][]
   >([]) // Filtered/sorted `courses`, using the parameters below the search button.
   const [loading, setLoading] = useState(false)
   const [searchTime, setSearchTime] = useState(0)
@@ -183,7 +183,7 @@ const App = () => {
     "showTAUFactor",
     "false"
   )
-  const [year, setYear] = useQueryParam("year", "2025")
+  const [year, setYear] = useQueryParam("year")
   const [semester, setSemester] = useQueryParam("semester")
   const [lecturer, setLecturer] = useQueryParam("lecturer")
   const [courseName, setCourseName] = useQueryParam("courseName")
@@ -199,6 +199,9 @@ const App = () => {
   const universityCourseNameRef = useRef<HTMLInputElement>(null)
   const universityCourseNumberRef = useRef<HTMLInputElement>(null)
 
+  const [generalInfo] = useURLValue<GeneralInfo>(
+    "https://arazim-project.com/data/info.json"
+  )
   const [allLecturers, setAllLecturers] = useState<string[]>([])
   const [allCourseNames, setAllCourseNames] = useState<string[]>([])
   const [allCourseNumbers, setAllCourseNumbers] = useState<string[]>([])
@@ -212,6 +215,16 @@ const App = () => {
     "sortBy",
     "semesterDescending"
   )
+
+  const years = [
+    ...new Set(
+      Object.keys(generalInfo.semesters ?? {}).map((semester) =>
+        semester.slice(0, 4)
+      )
+    ),
+  ]
+    .sort()
+    .reverse()
 
   const clearStatus = () => setStatus("")
 
@@ -229,9 +242,9 @@ const App = () => {
 
   useEffect(() => {
     setStatus("טוען מידע על כל הקורסים להשלמה אוטומטית...")
-    fetch("https://arazim-project.com/courses/courses.json")
+    fetch("https://arazim-project.com/data/courses.json")
       .then((r) => r.json())
-      .then((allCourses) => {
+      .then(async (allCourses: AllTimeCourses) => {
         allCourseInfo = allCourses
 
         const allCourseNumbers = []
@@ -240,53 +253,69 @@ const App = () => {
         const allFaculties = new Set<string>()
         for (const courseId in allCourses) {
           allCourseNumbers.push(courseId)
-          allCourseNames.add(allCourses[courseId].name)
-          for (const lecturer of allCourses[courseId].lecturers) {
+          if (allCourses[courseId]?.name) {
+            allCourseNames.add(allCourses[courseId].name)
+          }
+          for (const lecturer of allCourses[courseId]?.lecturers ?? []) {
             allLecturers.add(lecturer)
           }
-          allFaculties.add(allCourses[courseId].faculty)
+          if (allCourses[courseId]?.faculty) {
+            allFaculties.add(allCourses[courseId].faculty)
+          }
         }
         setAllCourseNumbers(allCourseNumbers.sort())
         setAllCourseNames([...allCourseNames].sort())
         setAllLecturers([...allLecturers].sort())
         setAllFaculties([...allFaculties].sort())
-        clearStatus()
-      })
-      .catch(clearStatus)
 
-    const promises: Promise<any>[] = []
-    setStatus("טוען מראש את כל הקורסים כדי להאיץ את החיפוש...")
-    for (const year of YEARS) {
-      for (const semester of Object.keys(SEMESTERS).sort().reverse()) {
-        promises.push(cachedFetchJson(coursesUrlFor(year, semester)))
-      }
-    }
-    Promise.all(promises)
-      .then(() => {
+        const generalInfo = await cachedFetch(
+          "https://arazim-project.com/data/info.json"
+        )
+        const years = [
+          ...new Set(
+            Object.keys(generalInfo.semesters ?? {}).map((semester) =>
+              semester.slice(0, 4)
+            )
+          ),
+        ]
+          .sort()
+          .reverse()
+
+        const promises: Promise<any>[] = []
+        setStatus("טוען מראש את כל הקורסים כדי להאיץ את החיפוש...")
+        for (const year of years) {
+          for (const semester of Object.keys(SEMESTERS).sort().reverse()) {
+            promises.push(
+              cachedFetch<SemesterCourses>(coursesUrlFor(year, semester))
+            )
+          }
+        }
+        await Promise.all(promises)
         setStatus("טוען את הציונים מ-TAU Factor...")
-        return cachedFetchJson("https://arazim-project.com/courses/grades.json")
-      })
-      .then((grades) => {
+        const grades = await cachedFetch<AllTimeGrades>(
+          "https://arazim-project.com/data/grades.json"
+        )
         setGrades(grades)
         // Generate allBuildings and allRooms from last semester
-        cachedFetchJson(coursesUrlFor(YEARS[0], "א׳")).then((courses) => {
-          const allBuildings = new Set<string>()
-          const allRooms = new Set<string>()
-          for (const course of Object.values(courses) as CourseInfo[]) {
-            for (const group of course.groups) {
-              for (const lesson of group.lessons) {
-                if (lesson.building !== "") {
-                  allBuildings.add(lesson.building)
-                }
-                if (lesson.room !== "") {
-                  allRooms.add(lesson.room)
-                }
+        const courses = await cachedFetch<SemesterCourses>(
+          coursesUrlFor(years[0], "א׳")
+        )
+        const allBuildings = new Set<string>()
+        const allRooms = new Set<string>()
+        for (const course of Object.values(courses)) {
+          for (const group of course?.groups ?? []) {
+            for (const lesson of group.lessons ?? []) {
+              if (lesson?.building) {
+                allBuildings.add(lesson.building)
+              }
+              if (lesson?.room) {
+                allRooms.add(lesson.room)
               }
             }
           }
-          setAllBuildings([...allBuildings].sort())
-          setAllRooms([...allRooms].sort())
-        })
+        }
+        setAllBuildings([...allBuildings].sort())
+        setAllRooms([...allRooms].sort())
         clearStatus()
       })
       .catch(clearStatus)
@@ -313,20 +342,21 @@ const App = () => {
     setLoading(true)
     setPerformedSearch(false)
 
-    const resultCourses: [string, string, string, CourseInfo][] = []
+    const resultCourses: [string, string, string, SemesterCourseInfo][] = []
 
-    let years = YEARS
     let semesters = Object.keys(SEMESTERS).sort().reverse()
 
+    let searchYears = years
     if (year !== undefined && year !== "") {
-      years = [year]
+      searchYears = [year]
     }
     if (semester !== undefined && semester !== "") {
       semesters = [semester]
     }
 
-    const promises: Promise<[string, string, string, CourseInfo][]>[] = []
-    for (const year of years) {
+    const promises: Promise<[string, string, string, SemesterCourseInfo][]>[] =
+      []
+    for (const year of searchYears) {
       for (const semester of semesters) {
         promises.push(
           getResultsForYear(
@@ -453,9 +483,8 @@ const App = () => {
                     mt="xs"
                     value={year}
                     onChange={(v) => setYear(v ?? "")}
-                    defaultValue="2025"
                     label="שנה"
-                    data={YEARS}
+                    data={years}
                     leftSection={<i className="fa-solid fa-calendar" />}
                     clearable
                   />

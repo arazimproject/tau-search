@@ -1,7 +1,6 @@
 import { BarChart, BarChartSeries } from "@mantine/charts"
 import { Box, Chip } from "@mantine/core"
 import { useState } from "react"
-import { SemesterGrades } from "./typing"
 
 const MOEDS = ["קובע", "א", "ב", "ג"]
 const COLORS = [
@@ -28,7 +27,7 @@ const COLORS = [
 const GradeChart = ({
   grades,
 }: {
-  grades: Record<string, SemesterGrades[]>
+  grades: Record<string, SemesterGroupGradeInfo[] | undefined>
 }) => {
   const [visibleGroups, setVisibleGroups] = useState<Record<string, boolean>>(
     {}
@@ -41,7 +40,7 @@ const GradeChart = ({
   const groups = Object.keys(grades).sort()
   const maxMoed = Math.max(
     ...Object.values(grades).map((grade) =>
-      Math.max(...grade.map((v) => v.moed))
+      Math.max(...(grade?.map((v) => v.moed ?? 0) ?? [0]))
     )
   )
 
@@ -50,25 +49,15 @@ const GradeChart = ({
   }
 
   let limits: number[] = []
-  for (const group in grades) {
-    for (const grade of grades[group]) {
-      if (grade.limits) {
-        limits = grade.limits
-      }
-    }
-  }
-
-  if (limits.length === 0) {
-    if (
-      Object.values(grades).every((grades) =>
-        grades.every((grade) => grade.distribution.length === 10)
-      )
-    ) {
-      limits = [0, 50, 60, 65, 70, 75, 80, 85, 90, 95, 100]
-    } else {
-      // There's a 210 missing here, hacky approach to fix it.
-      limits = [0, 50, 60, 65, 70, 75, 80, 85, 90, 95, 100, 200]
-    }
+  if (
+    Object.values(grades).every((grades) =>
+      grades?.every((grade) => grade.distribution?.length === 10)
+    )
+  ) {
+    limits = [0, 50, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+  } else {
+    // There's a 210 missing here, hacky approach to fix it.
+    limits = [0, 50, 60, 65, 70, 75, 80, 85, 90, 95, 100, 200]
   }
 
   const series: BarChartSeries[] = []
@@ -78,13 +67,13 @@ const GradeChart = ({
       continue
     }
 
-    for (const grade of grades[group]) {
-      if (visibleMoeds[grade.moed] === false) {
+    for (const grade of grades[group] ?? []) {
+      if (visibleMoeds[grade.moed!] === false) {
         continue
       }
 
       series.push({
-        name: group + " " + MOEDS[grade.moed],
+        name: group + " " + MOEDS[grade.moed!],
         color: COLORS[index],
       })
       index++
@@ -154,9 +143,9 @@ const GradeChart = ({
               range,
             }
             for (const group in grades) {
-              for (const grade of grades[group]) {
-                result[group + " " + MOEDS[grade.moed]] =
-                  grade.distribution[index] ?? 0
+              for (const grade of grades[group] ?? []) {
+                result[group + " " + MOEDS[grade.moed!]] =
+                  grade.distribution![index] ?? 0
               }
             }
 
