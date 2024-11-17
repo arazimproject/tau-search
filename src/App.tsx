@@ -254,13 +254,13 @@ const App = () => {
         for (const courseId in allCourses) {
           allCourseNumbers.push(courseId)
           if (allCourses[courseId]?.name) {
-            allCourseNames.add(allCourses[courseId].name)
+            allCourseNames.add(allCourses[courseId]!.name!)
           }
           for (const lecturer of allCourses[courseId]?.lecturers ?? []) {
             allLecturers.add(lecturer)
           }
           if (allCourses[courseId]?.faculty) {
-            allFaculties.add(allCourses[courseId].faculty)
+            allFaculties.add(allCourses[courseId]!.faculty!)
           }
         }
         setAllCourseNumbers(allCourseNumbers.sort())
