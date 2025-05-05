@@ -199,7 +199,7 @@ const App = () => {
   const universityCourseNameRef = useRef<HTMLInputElement>(null)
   const universityCourseNumberRef = useRef<HTMLInputElement>(null)
 
-  const [generalInfo] = useURLValue<GeneralInfo>(
+  const [generalInfo, generalInfoLoading] = useURLValue<GeneralInfo>(
     "https://arazim-project.com/data/info.json"
   )
   const [allLecturers, setAllLecturers] = useState<string[]>([])
@@ -399,10 +399,10 @@ const App = () => {
   }
 
   useEffect(() => {
-    if (window.location.search !== "") {
+    if (!generalInfoLoading && window.location.search !== "") {
       search(true)
     }
-  }, [])
+  }, [generalInfoLoading])
 
   let universityUnavailableReason = ""
   if (year === "") {
